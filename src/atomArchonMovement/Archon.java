@@ -1,4 +1,4 @@
-package atom;
+package atomArchonMovement;
 
 import battlecode.common.*;
 import javafx.scene.shape.Arc;
@@ -51,7 +51,7 @@ public class Archon {
                 } else if (startSpawn >= 3 && startSpawn < 6) {
                     soldierStartSequence(rc);
                 } else {
-                    //moveArchonTowardsEnemy(rc);
+                    moveArchonTowardsEnemy(rc);
                     if (isMTS) {
                         normalSpawnSequence(rc);
                     } else {
