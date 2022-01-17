@@ -6,7 +6,6 @@ import java.util.*;
 //0-3 enemyArchon
 //4-9 metalLocation
 //10-15 enemyLocation
-//16 archonMovement
 //49 = rand
 //50-53 archonId
 //54 spawnIndex
@@ -207,22 +206,6 @@ public class Communication {
         int[] locations = new int[] { rc.readSharedArray(55), rc.readSharedArray(56), rc.readSharedArray(57),
                 rc.readSharedArray(58) };
         return locations;
-    }
-
-    static void signalMovingArchon(RobotController rc) throws GameActionException {
-        rc.writeSharedArray(16, 1);
-    }
-
-    static void signalMovingArchonEnd(RobotController rc) throws GameActionException {
-        rc.writeSharedArray(16, 0);
-    }
-
-    static boolean anArchonIsMoving(RobotController rc) throws GameActionException {
-        if (rc.readSharedArray(16) == 1) {
-            return true;
-        } else {
-            return false;
-        }
     }
 
     static int convertMapLocationToInt(MapLocation location) {

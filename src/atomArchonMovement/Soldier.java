@@ -202,7 +202,7 @@ public class Soldier {
                     if (rc.canMove(dir)) {
                         rc.move(dir);
                     }
-                } else if (!healing) {
+                } else {
                     MapLocation farthestMinerFromBase = null;
                     int minerDistanceFromBase = 0;
 
@@ -286,7 +286,8 @@ public class Soldier {
         int distanceSquaredToClosest = Integer.MAX_VALUE;
         for (int i = 0; i < allies.length; i++) {
             RobotInfo ally = allies[i];
-            if (rc.getLocation().distanceSquaredTo(ally.getLocation()) < distanceSquaredToClosest) {
+            if (ally.getType() == RobotType.SOLDIER
+                    && rc.getLocation().distanceSquaredTo(ally.getLocation()) < distanceSquaredToClosest) {
                 closestAlly = ally;
                 distanceSquaredToClosest = rc.getLocation().distanceSquaredTo(ally.getLocation());
             }
@@ -318,11 +319,25 @@ public class Soldier {
     }
 
     static void checkNeedsHealing(RobotController rc) throws GameActionException {
+
         if (rc.getHealth() < 10 || healing) {
-            healing = true;
-            if (Data.spawnBaseLocation.distanceSquaredTo(rc.getLocation()) >= RobotType.ARCHON.actionRadiusSquared
-                    - 4) {
-                Direction dir = rc.getLocation().directionTo(Data.spawnBaseLocation);
+            int[] allyArchons = Communication.getArchonLocations(rc);
+            MapLocation closestBase = null;
+            int distanceToClosest = Integer.MAX_VALUE;
+
+            for (int i = 0; i < allyArchons.length; i++) {
+                if (allyArchons[i] != 0 && Communication.convertIntToMapLocation(allyArchons[i])
+                        .distanceSquaredTo(rc.getLocation()) < distanceToClosest) {
+                    closestBase = Communication.convertIntToMapLocation(allyArchons[i]);
+                    distanceToClosest = Communication.convertIntToMapLocation(allyArchons[i])
+                            .distanceSquaredTo(rc.getLocation());
+                }
+            }
+
+            if (closestBase != null
+                    && closestBase.distanceSquaredTo(rc.getLocation()) > RobotType.ARCHON.actionRadiusSquared - 4) {
+                healing = true;
+                Direction dir = rc.getLocation().directionTo(closestBase);
                 dir = Pathfinding.greedyPathfinding(rc, dir);
                 if (rc.canMove(dir)) {
                     rc.move(dir);

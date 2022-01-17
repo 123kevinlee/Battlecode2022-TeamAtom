@@ -1,8 +1,6 @@
 package atom;
 
 import battlecode.common.*;
-import javafx.scene.shape.Arc;
-
 import java.util.*;
 
 public class Archon {
@@ -16,10 +14,6 @@ public class Archon {
 
     static boolean enemyArchonNear = false;
     static boolean enemyNear = false;
-
-    static boolean isMoving = false;
-    static boolean transformBack = false;
-    static MapLocation locationToMove = null;
 
     //static boolean seenEnemy = false;
 
@@ -51,7 +45,6 @@ public class Archon {
                 } else if (startSpawn >= 3 && startSpawn < 6) {
                     soldierStartSequence(rc);
                 } else {
-                    //moveArchonTowardsEnemy(rc);
                     if (isMTS) {
                         normalSpawnSequence(rc);
                     } else {
@@ -64,134 +57,6 @@ public class Archon {
             }
         }
         heal(rc);
-    }
-
-    public static void moveArchonTowardsEnemy(RobotController rc) throws GameActionException {
-        String out = "";
-        if (transformBack) {
-            if (rc.canTransform()) {
-                rc.transform();
-                transformBack = false;
-                isMoving = false;
-                Communication.signalMovingArchonEnd(rc);
-            }
-        } else if (isMoving && rc.isMovementReady()) {
-            int[] enemyLocations = Communication.getEnemyLocations(rc);
-            MapLocation closestEnemyLocation = null;
-            int distanceToClosestEnemy = Integer.MAX_VALUE;
-            for (int i = 0; i < enemyLocations.length; i++) {
-                out += enemyLocations[i] + ";";
-
-                if (enemyLocations[i] != 0 && rc.getLocation().distanceSquaredTo(
-                        Communication.convertIntToMapLocation(enemyLocations[i])) < distanceToClosestEnemy) {
-                    closestEnemyLocation = Communication.convertIntToMapLocation(enemyLocations[i]);
-                    distanceToClosestEnemy = rc.getLocation().distanceSquaredTo(
-                            Communication.convertIntToMapLocation(enemyLocations[i]));
-                }
-            }
-            RobotInfo[] allys = rc.senseNearbyRobots(-1, rc.getTeam());
-            boolean nearAllyArchon = false;
-            for (int i = 0; i < allys.length; i++) {
-                if (allys[i].getType() == RobotType.ARCHON) {
-                    nearAllyArchon = true;
-                }
-            }
-
-            RobotInfo[] seenEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-
-            if (nearAllyArchon || seenEnemies.length > 0 || (closestEnemyLocation != null
-                    && distanceToClosestEnemy <= RobotType.ARCHON.visionRadiusSquared * 2)) {
-                MapLocation current = rc.getLocation();
-
-                MapLocation[] surroundings = new MapLocation[] { current, current.add(Direction.NORTH),
-                        current.add(Direction.WEST), current.add(Direction.EAST), current.add(Direction.SOUTH),
-                        current.add(Direction.NORTHEAST), current.add(Direction.NORTHWEST),
-                        current.add(Direction.SOUTHEAST), current.add(Direction.SOUTHWEST) };
-
-                MapLocation leastRubble = null;
-                int leastRubbleAmnt = Integer.MAX_VALUE;
-
-                for (int i = 0; i < surroundings.length; i++) {
-                    MapLocation site = surroundings[i];
-                    if (rc.canSenseLocation(site) && !rc.canSenseRobotAtLocation(site)
-                            && rc.senseRubble(site) < leastRubbleAmnt) {
-                        leastRubble = site;
-                        leastRubbleAmnt = rc.senseRubble(site);
-                    }
-                }
-
-                if (leastRubble != null) {
-                    Direction dir = rc.getLocation().directionTo(leastRubble);
-                    if (rc.canMove(Pathfinding.greedyPathfinding(rc, dir))) {
-                        rc.move(Pathfinding.greedyPathfinding(rc, dir));
-                        transformBack = true;
-                        isMoving = false;
-                    } else {
-                        transformBack = true;
-                        isMoving = false;
-                    }
-                } else {
-                    transformBack = true;
-                    isMoving = false;
-                }
-            } else {
-                MapLocation[] surroundings = rc.getAllLocationsWithinRadiusSquared(locationToMove,
-                        RobotType.ARCHON.actionRadiusSquared);
-
-                MapLocation leastRubble = null;
-                int leastRubbleAmnt = Integer.MAX_VALUE;
-
-                for (int i = 0; i < surroundings.length; i++) {
-                    MapLocation site = surroundings[i];
-                    if (rc.canSenseLocation(site) && !rc.canSenseRobotAtLocation(site)
-                            && rc.senseRubble(site) < leastRubbleAmnt) {
-                        leastRubble = site;
-                        leastRubbleAmnt = rc.senseRubble(site);
-                    }
-                }
-                Direction dir = rc.getLocation().directionTo(locationToMove);
-
-                if (leastRubble != null) {
-                    dir = rc.getLocation().directionTo(leastRubble);
-                    if (rc.canMove(Pathfinding.greedyPathfinding(rc, dir))) {
-                        rc.move(Pathfinding.greedyPathfinding(rc, dir));
-                        if (rc.getLocation().distanceSquaredTo(leastRubble) == 0) {
-                            transformBack = true;
-                            isMoving = false;
-                        }
-                    }
-                } else if (rc.canMove(Pathfinding.greedyPathfinding(rc, dir))) {
-                    rc.move(Pathfinding.greedyPathfinding(rc, dir));
-                }
-            }
-
-        } else if (!Communication.anArchonIsMoving(rc) && rc.isTransformReady()) {
-            int[] enemyLocations = Communication.getEnemyLocations(rc);
-            MapLocation closestEnemyLocation = null;
-            int distanceToClosestEnemy = Integer.MAX_VALUE;
-            for (int i = 0; i < enemyLocations.length; i++) {
-                out += enemyLocations[i] + ";";
-
-                if (enemyLocations[i] != 0 && rc.getLocation().distanceSquaredTo(
-                        Communication.convertIntToMapLocation(enemyLocations[i])) < distanceToClosestEnemy) {
-                    closestEnemyLocation = Communication.convertIntToMapLocation(enemyLocations[i]);
-                    distanceToClosestEnemy = rc.getLocation().distanceSquaredTo(
-                            Communication.convertIntToMapLocation(enemyLocations[i]));
-                }
-            }
-
-            if (closestEnemyLocation != null && distanceToClosestEnemy > RobotType.ARCHON.visionRadiusSquared * 4) {
-                //System.out.print("SAFE");
-                MapLocation current = rc.getLocation();
-                int newX = (current.x + closestEnemyLocation.x) / 2;
-                int newY = (current.y + closestEnemyLocation.y) / 2;
-                locationToMove = new MapLocation(newX, newY);
-                isMoving = true;
-                rc.transform();
-                Communication.signalMovingArchon(rc);
-            }
-        }
-        //System.out.println(out);
     }
 
     public static void gameStartSequence(RobotController rc) throws GameActionException {

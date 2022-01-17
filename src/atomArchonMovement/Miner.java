@@ -26,6 +26,13 @@ public class Miner {
                 RobotInfo robot = nearbyRobots[i];
                 if (robot.getTeam() == rc.getTeam() && robot.getType() == RobotType.MINER) {
                     nearbyMinerCount++;
+                } else if (robot.getTeam() == opponent && robot.getType() == RobotType.ARCHON) {
+                    Communication.addEnemyArconLocation(Communication.convertMapLocationToInt(robot.getLocation()), rc);
+                    Direction dir = Pathfinding.escapeEnemies(rc);
+                    if (rc.canMove(dir)) {
+                        rc.move(dir);
+                    }
+                    Pathfinding.setNewExploreLocation(rc);
                 } else if (robot.getTeam() == opponent && (robot.getType() == RobotType.SOLDIER
                         || robot.getType() == RobotType.SAGE)) {
 
@@ -168,7 +175,6 @@ public class Miner {
 
     static void checkNeedsHealing(RobotController rc) throws GameActionException {
         if (rc.getHealth() < 10 || healing) {
-            healing = true;
 
             int[] allyArchons = Communication.getArchonLocations(rc);
             MapLocation closestBase = null;
@@ -185,14 +191,8 @@ public class Miner {
 
             if (closestBase != null
                     && closestBase.distanceSquaredTo(rc.getLocation()) > RobotType.ARCHON.actionRadiusSquared - 4) {
+                healing = true;
                 Direction dir = rc.getLocation().directionTo(closestBase);
-                dir = Pathfinding.greedyPathfinding(rc, dir);
-                if (rc.canMove(dir)) {
-                    rc.move(dir);
-                }
-            } else if (Data.spawnBaseLocation.distanceSquaredTo(rc.getLocation()) > RobotType.ARCHON.actionRadiusSquared
-                    - 4) {
-                Direction dir = rc.getLocation().directionTo(Data.spawnBaseLocation);
                 dir = Pathfinding.greedyPathfinding(rc, dir);
                 if (rc.canMove(dir)) {
                     rc.move(dir);

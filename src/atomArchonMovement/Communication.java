@@ -14,6 +14,9 @@ import java.util.*;
 //59-62 archonLocations
 //63 lastLeadAmount
 public class Communication {
+    static int ownBaseLocationIndex = 0;
+    static int distressIndex = -1;
+
     static void setCommArrayIndexToZero(RobotController rc, int index) throws GameActionException {
         rc.writeSharedArray(index, 0);
     }
@@ -136,9 +139,14 @@ public class Communication {
         for (int i = 0; i < locations.length; i++) {
             if (locations[i] == 0) {
                 rc.writeSharedArray(i + 59, location);
+                ownBaseLocationIndex = i + 59;
                 break;
             }
         }
+    }
+
+    static void changeArchonLocation(RobotController rc, int location) throws GameActionException {
+        rc.writeSharedArray(ownBaseLocationIndex, location);
     }
 
     static int[] getArchonLocations(RobotController rc) throws GameActionException {
@@ -182,24 +190,24 @@ public class Communication {
     }
 
     static void sendDistressSignal(RobotController rc, int location) throws GameActionException {
-        int[] locations = new int[] { rc.readSharedArray(55), rc.readSharedArray(56), rc.readSharedArray(57),
-                rc.readSharedArray(58) };
-        for (int i = 0; i < locations.length; i++) {
-            if (locations[i] == 0) {
-                rc.writeSharedArray(i + 55, location);
-                break;
+        if (distressIndex == -1) {
+            int[] locations = new int[] { rc.readSharedArray(55), rc.readSharedArray(56), rc.readSharedArray(57),
+                    rc.readSharedArray(58) };
+            for (int i = 0; i < locations.length; i++) {
+                if (locations[i] == 0) {
+                    rc.writeSharedArray(i + 55, location);
+                    distressIndex = i + 55;
+                    break;
+                }
             }
+        } else {
+            rc.writeSharedArray(distressIndex, location);
         }
     }
 
     static void endDistressSignal(RobotController rc, int location) throws GameActionException {
-        int[] locations = new int[] { rc.readSharedArray(55), rc.readSharedArray(56), rc.readSharedArray(57),
-                rc.readSharedArray(58) };
-        for (int i = 0; i < locations.length; i++) {
-            if (locations[i] == location) {
-                setCommArrayIndexToZero(rc, i + 55);
-                break;
-            }
+        if (distressIndex != -1) {
+            setCommArrayIndexToZero(rc, distressIndex);
         }
     }
 

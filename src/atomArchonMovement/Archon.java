@@ -20,11 +20,16 @@ public class Archon {
     static boolean isMoving = false;
     static boolean transformBack = false;
     static MapLocation locationToMove = null;
+    static int movementCooldown = 100;
 
     //static boolean seenEnemy = false;
 
     static void runArchon(RobotController rc) throws GameActionException {
         UnitCounter.reset(rc);
+
+        if (movementCooldown > 0) {
+            movementCooldown--;
+        }
 
         if (rc.getRoundNum() % 3 == 0) {
             Communication.clearEnemyLocations(rc);
@@ -43,6 +48,10 @@ public class Archon {
         enemyNear = false;
         checkEnemyNear(rc);
 
+        if (!isMTS) {
+            moveArchonTowardsEnemy(rc);
+        }
+
         if (Communication.getArchonIds(rc)[Communication.getArchonSpawnIndex(rc)] == rc.getID()
                 || rc.getArchonCount() != ogArchonNumber) {
             if (!enemyArchonNear) {
@@ -51,7 +60,6 @@ public class Archon {
                 } else if (startSpawn >= 3 && startSpawn < 6) {
                     soldierStartSequence(rc);
                 } else {
-                    moveArchonTowardsEnemy(rc);
                     if (isMTS) {
                         normalSpawnSequence(rc);
                     } else {
@@ -73,7 +81,12 @@ public class Archon {
                 rc.transform();
                 transformBack = false;
                 isMoving = false;
+                movementCooldown = 100;
                 Communication.signalMovingArchonEnd(rc);
+                Communication.changeArchonLocation(rc, Communication.convertMapLocationToInt(rc.getLocation()));
+            }
+            if (Communication.getArchonIds(rc)[Communication.getArchonSpawnIndex(rc)] == rc.getID()) {
+                Communication.increaseArchonSpawnIndex(rc);
             }
         } else if (isMoving && rc.isMovementReady()) {
             int[] enemyLocations = Communication.getEnemyLocations(rc);
@@ -164,7 +177,9 @@ public class Archon {
                     rc.move(Pathfinding.greedyPathfinding(rc, dir));
                 }
             }
-
+            if (Communication.getArchonIds(rc)[Communication.getArchonSpawnIndex(rc)] == rc.getID()) {
+                Communication.increaseArchonSpawnIndex(rc);
+            }
         } else if (!Communication.anArchonIsMoving(rc) && rc.isTransformReady()) {
             int[] enemyLocations = Communication.getEnemyLocations(rc);
             MapLocation closestEnemyLocation = null;
@@ -180,15 +195,32 @@ public class Archon {
                 }
             }
 
-            if (closestEnemyLocation != null && distanceToClosestEnemy > RobotType.ARCHON.visionRadiusSquared * 4) {
+            int[] enemyArchonLocations = Communication.getEnemyLocations(rc);
+            MapLocation closestEnemyArchonLocation = null;
+            int distanceToClosestEnemyArchon = Integer.MAX_VALUE;
+            for (int i = 0; i < enemyArchonLocations.length; i++) {
+                if (enemyArchonLocations[i] != 0 && rc.getLocation().distanceSquaredTo(
+                        Communication
+                                .convertIntToMapLocation(enemyArchonLocations[i])) < distanceToClosestEnemyArchon) {
+                    closestEnemyArchonLocation = Communication.convertIntToMapLocation(enemyArchonLocations[i]);
+                    distanceToClosestEnemyArchon = rc.getLocation().distanceSquaredTo(
+                            Communication.convertIntToMapLocation(enemyArchonLocations[i]));
+                }
+            }
+
+            if (movementCooldown == 0 && closestEnemyArchonLocation != null
+                    && distanceToClosestEnemy > RobotType.ARCHON.visionRadiusSquared * 3) {
                 //System.out.print("SAFE");
                 MapLocation current = rc.getLocation();
-                int newX = (current.x + closestEnemyLocation.x) / 2;
-                int newY = (current.y + closestEnemyLocation.y) / 2;
+                int newX = current.x + Math.abs(closestEnemyArchonLocation.x - current.x) / 3;
+                int newY = current.y + Math.abs(closestEnemyArchonLocation.y - current.y) / 3;
                 locationToMove = new MapLocation(newX, newY);
                 isMoving = true;
                 rc.transform();
                 Communication.signalMovingArchon(rc);
+                if (Communication.getArchonIds(rc)[Communication.getArchonSpawnIndex(rc)] == rc.getID()) {
+                    Communication.increaseArchonSpawnIndex(rc);
+                }
             }
         }
         //System.out.println(out);
