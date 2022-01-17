@@ -277,9 +277,32 @@ public class Archon {
         }
     }
 
+    public static void moveToOtherArchon(RobotController rc) extends GameActionException{
+        /*if one archon, do nothing
+        if two, find the better one to move and move that one
+            how close?
+                till they can sense each other?
+            which one?
+                least surrounding rubble
+            greedy pathfinding for movement
+        if three, move all together
+            the two closest ones
+        if four, two and two
+
+        lowest total rubble in init
+        contain location and rubble amount
+        */
+        if(Communication.convertMapLocationToInt(rc.getLocation() == rc.readSharedArray(17)){
+            return;
+        } else{
+            Pathfinding.greedyPathfinding(rc, Communication.conv)
+        }
+    }
+
     public static void init(RobotController rc) throws GameActionException {
         Communication.addArchonId(rc, rc.getID());
         Communication.addArchonLocation(rc, Communication.convertMapLocationToInt(rc.getLocation()));
+        Communication.checkNearbyRubble(rc);
         ogArchonNumber = rc.getArchonCount();
 
         spawnOrder.add(RobotType.SOLDIER);
