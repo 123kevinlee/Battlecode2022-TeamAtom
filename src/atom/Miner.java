@@ -57,6 +57,7 @@ public class Miner {
                     if (rc.canMove(dir)) {
                         rc.move(dir);
                     }
+                    Pathfinding.setNewExploreLocation(rc);
                 } else if (robot.getTeam() == opponent) {
                     Communication.addEnemyLocation(rc, Communication.convertMapLocationToInt(robot.getLocation()));
                     if (robot.getType() == RobotType.MINER && currentLoc.distanceSquaredTo(robot.getLocation()) <= 4) {
@@ -158,7 +159,7 @@ public class Miner {
                 }
             }
         } else {
-            Direction dir = Pathfinding.wander(rc);
+            Direction dir = Pathfinding.randomMiners(rc);
             if (rc.canMove(dir)) {
                 rc.move(dir);
             }
