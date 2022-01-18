@@ -1,29 +1,19 @@
 package atomFinal;
 
 import battlecode.common.*;
-
-import java.time.Duration;
 import java.util.*;
 
 public class Soldier2 {
     static boolean healing = false;
+    static int escapeCounter = 0;
 
     static void runSoldier(RobotController rc) throws GameActionException {
         int actionRadius = rc.getType().actionRadiusSquared;
         Team opponent = rc.getTeam().opponent();
         int visionRadius = rc.getType().visionRadiusSquared;
-
-        RobotInfo[] enemiesInActionRadius = rc.senseNearbyRobots(actionRadius, opponent);
-        RobotInfo target = null;
-        int targetHealth = Integer.MAX_VALUE;
-        int targetValue = Integer.MAX_VALUE; //sage = 1, soldier = 2, builder = 3, archon = 4, miner = 5
-
-        int enemyAttackersCount = 0;
-        int allyAttackersCount = 0;
-        boolean nearAllyArchon = false;
+        MapLocation current = rc.getLocation();
 
         UnitCounter.addSoldier(rc);
-        checkNeedsHealing(rc);
 
         int closestEnemyArcon = getClosestEnemyArcon(rc);
         MapLocation closestEnemyArconLocation = null;
@@ -36,283 +26,197 @@ public class Soldier2 {
             }
         }
 
-        RobotInfo[] alliesInVisionRange = rc.senseNearbyRobots(visionRadius, rc.getTeam());
-        for (int i = 0; i < alliesInVisionRange.length; i++) {
-            RobotInfo ally = alliesInVisionRange[i];
-            if (ally.getType() == RobotType.SOLDIER || ally.getType() == RobotType.SAGE) {
-                allyAttackersCount++;
-            } else if (ally.getType() == RobotType.ARCHON) {
-                nearAllyArchon = true;
-            }
-        }
-        RobotInfo[] enemiesInVisionRange = rc.senseNearbyRobots(visionRadius, opponent);
-        for (int i = 0; i < enemiesInVisionRange.length; i++) {
-            RobotInfo enemy = enemiesInVisionRange[i];
-            if (enemy.getType() == RobotType.SOLDIER || enemy.getType() == RobotType.SAGE) {
-                enemyAttackersCount++;
-            }
+        RobotInfo[] nearbyRobots = rc.senseNearbyRobots();
+        RobotInfo target = null;
+        int targetHealth = Integer.MAX_VALUE;
+        int targetValue = Integer.MAX_VALUE; //sage = 1, soldier = 2, builder = 3, archon = 4, miner = 5
+        int enemyAttackersCount = 0;
+        int allyAttackersCount = 1;
+        boolean nearAllyArchon = false;
+
+        if (enemyAttackersCount == 0) {
+            checkNeedsHealing(rc);
         }
 
-        // enemies within action radius
-        if (enemiesInActionRadius.length > 0) {
-            for (int i = 0; i < enemiesInActionRadius.length; i++) {
-                RobotInfo enemy = enemiesInActionRadius[i];
-                if (enemy.getType() == RobotType.ARCHON) {
-                    Communication.addEnemyArconLocation(Communication.convertMapLocationToInt(enemy.getLocation()), rc);
+        for (int i = 0; i < nearbyRobots.length; i++) {
+            RobotInfo robot = nearbyRobots[i];
+            if (robot.getTeam() == opponent) {
+                if (robot.getType() == RobotType.ARCHON) {
+                    Communication.addEnemyArconLocation(Communication.convertMapLocationToInt(robot.getLocation()), rc);
+                } else if ((robot.getType() == RobotType.SOLDIER || robot.getType() == RobotType.SAGE)) {
+                    enemyAttackersCount++;
                 }
-
-                int enemyValue = Data.determineEnemyValue(enemiesInActionRadius[i]);
+                int enemyValue = Data.determineEnemyValue(robot);
                 if (enemyValue < targetValue) {
-                    target = enemiesInActionRadius[i];
-                    targetHealth = enemiesInActionRadius[i].health;
+                    target = robot;
+                    targetHealth = robot.getHealth();
                     targetValue = enemyValue;
-                } else if (enemyValue == targetValue && enemiesInActionRadius[i].health < targetHealth) {
-                    target = enemiesInActionRadius[i];
-                    targetHealth = enemiesInActionRadius[i].health;
+                } else if (enemyValue == targetValue && robot.health < targetHealth) {
+                    target = robot;
+                    targetHealth = robot.getHealth();
                     targetValue = enemyValue;
-                }
-            }
-
-            MapLocation toAttack = target.getLocation();
-
-            if (target.getType() == RobotType.SOLDIER || target.getType() == RobotType.SAGE) {
-                Communication.addEnemyLocation(rc, Communication.convertMapLocationToInt(toAttack));
-            }
-
-            if (rc.canAttack(toAttack)) {
-                rc.attack(toAttack);
-            }
-
-            int[] enemyArchons = Communication.getEnemyArconLocations(rc);
-            for (int i = 0; i < enemyArchons.length; i++) {
-                if (enemyArchons[i] != 0) {
-                    int enemyDistanceToEnemyArchon = toAttack
-                            .distanceSquaredTo(Communication.convertIntToMapLocation(enemyArchons[i]));
-                    if (enemyDistanceToEnemyArchon <= RobotType.ARCHON.visionRadiusSquared) {
-                        if (allyAttackersCount * 2 < enemyAttackersCount) {
-                            if (allyAttackersCount != 0) {
-                                RobotInfo nearestAlly = getClosestAlly(rc, alliesInVisionRange);
-                                if (nearestAlly != null) {
-                                    Direction escapeDir = Pathfinding.greedyPathfinding(rc,
-                                            nearestAlly.getLocation());
-                                    if (rc.canMove(escapeDir)) {
-                                        rc.move(escapeDir);
-                                    }
-                                }
-                            } else {
-                                MapLocation attackerLocation = target.getLocation();
-                                Direction escapeDir = Pathfinding.greedyPathfinding(rc,
-                                        rc.getLocation().directionTo(attackerLocation).opposite());
-                                //Direction escapeDir = Pathfinding.escapeEnemies(rc);
-                                if (rc.canMove(escapeDir)) {
-                                    rc.move(escapeDir);
-                                }
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-
-            if ((target.getType() == RobotType.SOLDIER || target.getType() == RobotType.SAGE)
-                    && rc.getLocation().distanceSquaredTo(toAttack) <= actionRadius) {
-                Direction away = rc.getLocation().directionTo(toAttack).opposite();
-                away = Pathfinding.greedyPathfinding(rc, away);
-                if (rc.senseRubble(rc.getLocation().add(away)) <= rc.senseRubble(rc.getLocation())) {
-                    if (rc.canMove(away)) {
-                        rc.move(away);
-                    }
-                }
-            } else if (target.getType() == RobotType.ARCHON) {
-                swarmArcon(rc, target.getLocation());
-            }
-        } else {
-
-            int targetDistance = Integer.MAX_VALUE;
-            if (enemiesInVisionRange.length > 0) {
-                for (int i = 0; i < enemiesInVisionRange.length; i++) {
-                    RobotInfo enemy = enemiesInVisionRange[i];
-                    if (enemy.getType() == RobotType.ARCHON) {
-                        Communication.addEnemyArconLocation(Communication.convertMapLocationToInt(enemy.getLocation()),
-                                rc);
-                    }
-
-                    int enemyValue = Data.determineEnemyValue(enemiesInVisionRange[i]);
-                    int distanceToEnemy = rc.getLocation().distanceSquaredTo(enemiesInVisionRange[i].getLocation());
-                    if (enemyValue <= targetValue && distanceToEnemy < targetDistance) {
-                        target = enemiesInVisionRange[i];
-                        targetDistance = distanceToEnemy;
-                        targetValue = enemyValue;
-                    }
-                }
-
-                //run away if outnumbered
-                if (allyAttackersCount < enemyAttackersCount && !nearAllyArchon) {
-                    if (allyAttackersCount != 0) {
-                        RobotInfo nearestAlly = getClosestAlly(rc, alliesInVisionRange);
-                        if (nearestAlly != null) {
-                            Direction escapeDir = Pathfinding.greedyPathfinding(rc, nearestAlly.getLocation());
-                            if (rc.canMove(escapeDir)) {
-                                rc.move(escapeDir);
-                            }
-                        }
-                    } else {
-                        MapLocation attackerLocation = target.getLocation();
-                        Direction escapeDir = Pathfinding.greedyPathfinding(rc,
-                                rc.getLocation().directionTo(attackerLocation).opposite());
-                        //Direction escapeDir = Pathfinding.escapeEnemies(rc);
-                        if (rc.canMove(escapeDir)) {
-                            rc.move(escapeDir);
-                        }
-                    }
-                }
-
-                MapLocation toAttack = target.getLocation();
-                Communication.addEnemyLocation(rc, Communication.convertMapLocationToInt(toAttack));
-
-                int[] enemyArchons = Communication.getEnemyArconLocations(rc);
-                for (int i = 0; i < enemyArchons.length; i++) {
-                    if (enemyArchons[i] != 0) {
-                        int enemyDistanceToEnemyArchon = toAttack
-                                .distanceSquaredTo(Communication.convertIntToMapLocation(enemyArchons[i]));
-                        if (enemyDistanceToEnemyArchon <= RobotType.ARCHON.visionRadiusSquared) {
-                            if (allyAttackersCount * 2 < enemyAttackersCount) {
-                                if (allyAttackersCount != 0) {
-                                    RobotInfo nearestAlly = getClosestAlly(rc, alliesInVisionRange);
-                                    if (nearestAlly != null) {
-                                        Direction escapeDir = Pathfinding.greedyPathfinding(rc,
-                                                nearestAlly.getLocation());
-                                        if (rc.canMove(escapeDir)) {
-                                            rc.move(escapeDir);
-                                        }
-                                    }
-                                } else {
-                                    MapLocation attackerLocation = target.getLocation();
-                                    Direction escapeDir = Pathfinding.greedyPathfinding(rc,
-                                            rc.getLocation().directionTo(attackerLocation).opposite());
-                                    //Direction escapeDir = Pathfinding.escapeEnemies(rc);
-                                    if (rc.canMove(escapeDir)) {
-                                        rc.move(escapeDir);
-                                    }
-                                }
-                            }
-                            break;
-                        }
-                    }
-                }
-
-                MapLocation[] surroundings = rc.getAllLocationsWithinRadiusSquared(toAttack,
-                        actionRadius + 2);
-                MapLocation leastRubbleLocation = null;
-                int rubbleAtleastRubbleLocation = Integer.MAX_VALUE;
-
-                for (int i = 0; i < surroundings.length; i++) {
-                    if (rc.canSenseLocation(surroundings[i])
-                            && surroundings[i]
-                                    .distanceSquaredTo(target.getLocation()) <= target.getType().actionRadiusSquared
-                            && !rc.canSenseRobotAtLocation(surroundings[i])
-                            && rc.senseRubble(surroundings[i]) < rubbleAtleastRubbleLocation) {
-                        leastRubbleLocation = surroundings[i];
-                        rubbleAtleastRubbleLocation = rc.senseRubble(surroundings[i]);
-                    }
-                }
-
-                if (leastRubbleLocation != null) {
-                    if (rc.canSenseLocation(toAttack) && rc.senseRubble(toAttack) < rubbleAtleastRubbleLocation) {
-                        if (allyAttackersCount != 0) {
-                            RobotInfo nearestAlly = getClosestAlly(rc, alliesInVisionRange);
-                            if (nearestAlly != null) {
-                                Direction escapeDir = Pathfinding.greedyPathfinding(rc, nearestAlly.getLocation());
-                                if (rc.canMove(escapeDir)) {
-                                    rc.move(escapeDir);
-                                }
-                            }
-                        } else {
-                            MapLocation attackerLocation = target.getLocation();
-                            Direction escapeDir = Pathfinding.greedyPathfinding(rc,
-                                    rc.getLocation().directionTo(attackerLocation).opposite());
-                            //Direction escapeDir = Pathfinding.escapeEnemies(rc);
-                            if (rc.canMove(escapeDir)) {
-                                rc.move(escapeDir);
-                            }
-                        }
-                    } else {
-                        Direction moveToOptimalLocation = Pathfinding.greedyPathfinding(rc, leastRubbleLocation);
-                        if (rc.canMove(moveToOptimalLocation)) {
-                            rc.move(moveToOptimalLocation);
-                        }
-                    }
-                }
-                if (rc.canAttack(toAttack)) {
-                    rc.attack(toAttack);
                 }
             } else {
-                int closestEnemy = getClosestEnemy(rc);
-                int[] distressSignals = Communication.checkDistressSignal(rc);
-                MapLocation distressLocation = null;
-                int leastDistressDistance = Integer.MAX_VALUE;
-                for (int i = 0; i < distressSignals.length; i++) {
-                    if (distressSignals[i] != 0) {
-                        MapLocation loc = Communication.convertIntToMapLocation(distressSignals[i]);
-                        if (rc.getLocation().distanceSquaredTo(loc) < leastDistressDistance) {
-                            distressLocation = loc;
-                            leastDistressDistance = rc.getLocation().distanceSquaredTo(loc);
+                if (robot.getType() == RobotType.SOLDIER || robot.getType() == RobotType.SAGE) {
+                    allyAttackersCount++;
+                } else if (robot.getType() == RobotType.ARCHON) {
+                    nearAllyArchon = true;
+                }
+            }
+        }
+
+        int singleOutI = getClosestEnemy(rc);
+        if (singleOutI != 0) {
+            MapLocation singleOut = Communication.convertIntToMapLocation(singleOutI);
+            if (current.distanceSquaredTo(singleOut) <= RobotType.SOLDIER.visionRadiusSquared) {
+                target = rc.senseRobotAtLocation(singleOut);
+            }
+        }
+
+        if (target != null) {
+            if (rc.getLocation().distanceSquaredTo(target.getLocation()) > RobotType.SOLDIER.actionRadiusSquared) {
+                if (allyAttackersCount < enemyAttackersCount && !nearAllyArchon) {
+                    Direction escapeDir = Pathfinding.escapeEnemies(rc);
+                    if (rc.canMove(escapeDir)) {
+                        rc.move(escapeDir);
+                    }
+                } else {
+                    MapLocation toAttack = target.getLocation();
+                    MapLocation[] surroundings = rc.getAllLocationsWithinRadiusSquared(toAttack,
+                            RobotType.SOLDIER.visionRadiusSquared);
+                    MapLocation leastRubbleLocation = null;
+                    int rubbleAtleastRubbleLocation = Integer.MAX_VALUE;
+                    int leastRubbleDistance = Integer.MAX_VALUE;
+
+                    for (int i = 0; i < surroundings.length; i++) {
+                        if (rc.canSenseLocation(surroundings[i]) && !rc.canSenseRobotAtLocation(surroundings[i])
+                                && surroundings[i].distanceSquaredTo(target.getLocation()) >= 9
+                                && surroundings[i]
+                                        .distanceSquaredTo(
+                                                target.getLocation()) <= RobotType.SOLDIER.actionRadiusSquared) {
+                            if (rc.senseRubble(surroundings[i]) < rubbleAtleastRubbleLocation) {
+                                leastRubbleLocation = surroundings[i];
+                                rubbleAtleastRubbleLocation = rc.senseRubble(surroundings[i]);
+                                leastRubbleDistance = current.distanceSquaredTo(surroundings[i]);
+                            } else if (rc.senseRubble(surroundings[i]) == rubbleAtleastRubbleLocation
+                                    && current.distanceSquaredTo(surroundings[i]) < leastRubbleDistance) {
+                                leastRubbleLocation = surroundings[i];
+                                rubbleAtleastRubbleLocation = rc.senseRubble(surroundings[i]);
+                                leastRubbleDistance = current.distanceSquaredTo(surroundings[i]);
+                            }
+                        }
+                    }
+
+                    if (rubbleAtleastRubbleLocation <= rc.senseRubble(target.getLocation())) {
+                        Direction to = Pathfinding.greedyPathfinding(rc, leastRubbleLocation);
+                        if (rc.canMove(to)) {
+                            rc.move(to);
+                        }
+                    } else {
+                        Direction dir = Pathfinding.escapeEnemies(rc);
+                        if (rc.canMove(dir)) {
+                            rc.move(dir);
                         }
                     }
                 }
-                if (distressLocation != null) {
-                    Direction dir = Pathfinding.greedyPathfinding(rc, distressLocation);
+                if (rc.canAttack(target.getLocation())) {
+                    rc.attack(target.getLocation());
+                }
+            } else {
+                if (target.getType() == RobotType.SOLDIER || target.getType() == RobotType.SAGE) {
+                    Communication.addEnemyLocation(rc, Communication.convertMapLocationToInt(target.getLocation()));
+                }
+                if (rc.canAttack(target.getLocation())) {
+                    rc.attack(target.getLocation());
+                }
+                if (target.getType() == RobotType.ARCHON) {
+                    swarmArcon(rc, target.getLocation());
+                } else if (allyAttackersCount < enemyAttackersCount && !nearAllyArchon) {
+                    Direction escapeDir = Pathfinding.escapeEnemies(rc);
+                    if (rc.canMove(escapeDir)) {
+                        rc.move(escapeDir);
+                    }
+                } else if (rc.senseRubble(current) > rc.senseRubble(target.getLocation())) {
+                    Direction dir = Pathfinding.escapeEnemies(rc);
                     if (rc.canMove(dir)) {
                         rc.move(dir);
                     }
-                } else if (closestEnemy != 0) {
-                    MapLocation closestEnemyLocation = Communication.convertIntToMapLocation(closestEnemy);
-                    Direction dir = Pathfinding.greedyPathfinding(rc, closestEnemyLocation);
+                } else if ((target.getType() == RobotType.SOLDIER || target.getType() == RobotType.SAGE)) {
+                    Direction away = rc.getLocation().directionTo(target.getLocation()).opposite();
+                    away = Pathfinding.greedyPathfinding(rc, away);
+                    if (rc.senseRubble(rc.getLocation().add(away)) <= rc.senseRubble(rc.getLocation())) {
+                        if (rc.canMove(away)) {
+                            rc.move(away);
+                        }
+                    }
+                }
+            }
+        } else {
+            int closestEnemy = getClosestEnemy(rc);
+            rc.setIndicatorString(closestEnemy + " ");
+            int[] distressSignals = Communication.checkDistressSignal(rc);
+            MapLocation distressLocation = null;
+            int leastDistressDistance = Integer.MAX_VALUE;
+            for (int i = 0; i < distressSignals.length; i++) {
+                if (distressSignals[i] != 0) {
+                    MapLocation loc = Communication.convertIntToMapLocation(distressSignals[i]);
+                    if (rc.getLocation().distanceSquaredTo(loc) < leastDistressDistance) {
+                        distressLocation = loc;
+                        leastDistressDistance = rc.getLocation().distanceSquaredTo(loc);
+                    }
+                }
+            }
+            if (distressLocation != null) {
+                Direction dir = Pathfinding.greedyPathfinding(rc, distressLocation);
+                if (rc.canMove(dir)) {
+                    rc.move(dir);
+                    rc.setIndicatorString("MOVINGTODISTRESS:" + dir);
+                }
+            } else if (closestEnemy != 0) {
+                MapLocation closestEnemyLocation = Communication.convertIntToMapLocation(closestEnemy);
+                Direction dir = Pathfinding.greedyPathfinding(rc, closestEnemyLocation);
+                if (rc.canMove(dir)) {
+                    rc.move(dir);
+                    rc.setIndicatorString(closestEnemy + "MOVINGTOENEMY");
+                }
+            } else {
+                MapLocation farthestMinerFromBase = null;
+                int minerDistanceFromBase = 0;
+                RobotInfo[] allys = rc.senseNearbyRobots(-1, rc.getTeam());
+                for (int i = 0; i < allys.length; i++) {
+                    RobotInfo ally = allys[i];
+                    if (ally.getType() == RobotType.MINER) {
+                        if (ally.getLocation()
+                                .distanceSquaredTo(Data.spawnBaseLocation) > minerDistanceFromBase) {
+                            farthestMinerFromBase = ally.getLocation();
+                            minerDistanceFromBase = ally.getLocation()
+                                    .distanceSquaredTo(Data.spawnBaseLocation);
+                        }
+
+                    }
+                }
+                if (farthestMinerFromBase != null) {
+                    Direction minerAwayFromBase = Data.spawnBaseLocation.directionTo(farthestMinerFromBase);
+                    MapLocation inFrontOfMiner = farthestMinerFromBase.add(minerAwayFromBase).add(minerAwayFromBase)
+                            .add(minerAwayFromBase);
+                    Direction dir = Pathfinding.greedyPathfinding(rc,
+                            rc.getLocation().directionTo(inFrontOfMiner));
                     if (rc.canMove(dir)) {
                         rc.move(dir);
+                        rc.setIndicatorString("MOVINGTOMINER:" + dir);
+                        //rc.setIndicatorString("MOVINGRAND");
+                    }
+                } else if (closestEnemyArcon != 0) {
+                    Direction dir = Pathfinding.greedyPathfinding(rc, closestEnemyArconLocation);
+                    if (rc.canMove(dir)) {
+                        rc.move(dir);
+                        rc.setIndicatorString("MOVINGTOENEMYARCHON:" + dir);
                     }
                 } else {
-                    MapLocation farthestMinerFromBase = null;
-                    int minerDistanceFromBase = 0;
-
-                    RobotInfo[] allys = rc.senseNearbyRobots(-1, rc.getTeam());
-                    for (int i = 0; i < allys.length; i++) {
-                        RobotInfo ally = allys[i];
-                        if (ally.getType() == RobotType.MINER) {
-                            if (ally.getLocation()
-                                    .distanceSquaredTo(Data.spawnBaseLocation) > minerDistanceFromBase) {
-                                farthestMinerFromBase = ally.getLocation();
-                                minerDistanceFromBase = ally.getLocation()
-                                        .distanceSquaredTo(Data.spawnBaseLocation);
-                            }
-
-                        }
-                    }
-
-                    if (farthestMinerFromBase != null) {
-                        Direction minerAwayFromBase = Data.spawnBaseLocation.directionTo(farthestMinerFromBase);
-                        MapLocation inFrontOfMiner = farthestMinerFromBase.add(minerAwayFromBase).add(minerAwayFromBase)
-                                .add(minerAwayFromBase);
-                        Direction dir = Pathfinding.greedyPathfinding(rc,
-                                rc.getLocation().directionTo(inFrontOfMiner));
-                        if (rc.canMove(dir)) {
-                            rc.move(dir);
-                            //rc.setIndicatorString("MOVINGRAND");
-                        }
-                    }
-                    /*else if (closestEnemyArcon != 0) {
-                        //dir = Pathfinding.basicBug(rc, closestEnemyArconLocation);
-                        Direction dir = Pathfinding.greedyPathfinding(rc, closestEnemyArconLocation);
-                        if (rc.canMove(dir)) {
-                            rc.move(dir);
-                            //rc.setIndicatorString("MOVINGTOARCON");
-                        }
-                    } */else {
-                        Direction dir = Pathfinding.wander(rc);
-                        if (rc.canMove(dir)) {
-                            rc.move(dir);
-                            //rc.setIndicatorString("MOVINGRAND");
-                        }
+                    Direction dir = Pathfinding.wander(rc);
+                    if (rc.canMove(dir)) {
+                        rc.move(dir);
+                        rc.setIndicatorString("MOVINGRAND:" + dir);
                     }
                 }
             }
@@ -398,7 +302,7 @@ public class Soldier2 {
                 }
             }
         }
-        if (healing && rc.getHealth() >= 35) {
+        if (healing && rc.getHealth() >= 45) {
             healing = false;
         }
     }

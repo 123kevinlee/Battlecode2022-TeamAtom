@@ -5,7 +5,7 @@ import java.util.*;
 
 //0-3 enemyArchon
 //4-9 metalLocation
-//10-15 enemyLocation
+//10-19 enemyLocation
 //49 = rand
 //50-53 archonId
 //54 spawnIndex
@@ -82,12 +82,13 @@ public class Communication {
 
     static void addEnemyLocation(RobotController rc, int location) throws GameActionException {
         int[] locations = new int[] { rc.readSharedArray(10), rc.readSharedArray(11), rc.readSharedArray(12),
-                rc.readSharedArray(13), rc.readSharedArray(14), rc.readSharedArray(15) };
+                rc.readSharedArray(13), rc.readSharedArray(14), rc.readSharedArray(15), rc.readSharedArray(16),
+                rc.readSharedArray(17), rc.readSharedArray(18), rc.readSharedArray(19) };
         for (int i = 0; i < locations.length; i++) {
             if (locations[i] != 0) {
                 MapLocation mapLocation = convertIntToMapLocation(locations[i]);
                 MapLocation thisLocation = convertIntToMapLocation(location);
-                if (mapLocation.distanceSquaredTo(thisLocation) < 50) {
+                if (mapLocation.distanceSquaredTo(thisLocation) < RobotType.SOLDIER.visionRadiusSquared * 2) {
                     break;
                 }
             } else if (locations[i] == 0) {
@@ -99,7 +100,8 @@ public class Communication {
 
     static int[] getEnemyLocations(RobotController rc) throws GameActionException {
         int[] locations = new int[] { rc.readSharedArray(10), rc.readSharedArray(11), rc.readSharedArray(12),
-                rc.readSharedArray(13), rc.readSharedArray(14), rc.readSharedArray(15) };
+                rc.readSharedArray(13), rc.readSharedArray(14), rc.readSharedArray(15), rc.readSharedArray(16),
+                rc.readSharedArray(17), rc.readSharedArray(18), rc.readSharedArray(19) };
         return locations;
     }
 
@@ -110,6 +112,10 @@ public class Communication {
         setCommArrayIndexToZero(rc, 13);
         setCommArrayIndexToZero(rc, 14);
         setCommArrayIndexToZero(rc, 15);
+        setCommArrayIndexToZero(rc, 16);
+        setCommArrayIndexToZero(rc, 17);
+        setCommArrayIndexToZero(rc, 18);
+        setCommArrayIndexToZero(rc, 19);
     }
 
     static void addArchonId(RobotController rc, int id) throws GameActionException {

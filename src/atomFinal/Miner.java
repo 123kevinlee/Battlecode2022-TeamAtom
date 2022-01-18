@@ -59,7 +59,6 @@ public class Miner {
                     }
                     Pathfinding.setNewExploreLocation(rc);
                 } else if (robot.getTeam() == opponent) {
-                    Communication.addEnemyLocation(rc, Communication.convertMapLocationToInt(robot.getLocation()));
                     if (robot.getType() == RobotType.MINER && currentLoc.distanceSquaredTo(robot.getLocation()) <= 4) {
                         shouldEcoterroism = true;
                     }
@@ -91,10 +90,19 @@ public class Miner {
         int distanceToTarget = Integer.MAX_VALUE;
 
         for (MetalLocation loc : metalLocations) {
-            int distanceToLoc = currentLoc.distanceSquaredTo(loc.location);
-            if (distanceToLoc < distanceToTarget) {
-                target = loc;
-                distanceToTarget = distanceToLoc;
+            if (rc.getRoundNum() < 50 && loc.location.distanceSquaredTo(Pathfinding.randomLocation) <= currentLoc
+                    .distanceSquaredTo(Pathfinding.randomLocation)) {
+                int distanceToLoc = currentLoc.distanceSquaredTo(loc.location);
+                if (distanceToLoc < distanceToTarget) {
+                    target = loc;
+                    distanceToTarget = distanceToLoc;
+                }
+            } else {
+                int distanceToLoc = currentLoc.distanceSquaredTo(loc.location);
+                if (distanceToLoc < distanceToTarget) {
+                    target = loc;
+                    distanceToTarget = distanceToLoc;
+                }
             }
         }
 
@@ -358,5 +366,6 @@ public class Miner {
             }
         }
         Data.rng = new Random(rc.getID());
+        Pathfinding.setNewExploreLocation(rc);
     }
 }

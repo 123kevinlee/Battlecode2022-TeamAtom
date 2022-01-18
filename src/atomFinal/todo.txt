@@ -1,6 +1,10 @@
-only fight near enemy arcon if have numbers advantage bc of healing
+refactor
 
-bring miners back to heal? --pretty sure this doesn't help
+make soldiers group up on other soldiers - rn miners within action radius have priority
+
+better miner randomization
+
+only fight near enemy arcon if have numbers advantage bc of healing
 
 move archons closer to each other???
 
