@@ -8,4 +8,4 @@ only fight near enemy arcon if have numbers advantage bc of healing
 
 move archons closer to each other???
 
-
+fix distress, never gets erased when dies

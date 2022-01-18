@@ -8,9 +8,7 @@ public class Soldier2 {
     static int escapeCounter = 0;
 
     static void runSoldier(RobotController rc) throws GameActionException {
-        int actionRadius = rc.getType().actionRadiusSquared;
         Team opponent = rc.getTeam().opponent();
-        int visionRadius = rc.getType().visionRadiusSquared;
         MapLocation current = rc.getLocation();
 
         UnitCounter.addSoldier(rc);
@@ -34,9 +32,7 @@ public class Soldier2 {
         int allyAttackersCount = 1;
         boolean nearAllyArchon = false;
 
-        if (enemyAttackersCount == 0) {
-            checkNeedsHealing(rc);
-        }
+        checkNeedsHealing(rc);
 
         for (int i = 0; i < nearbyRobots.length; i++) {
             RobotInfo robot = nearbyRobots[i];
@@ -65,20 +61,31 @@ public class Soldier2 {
             }
         }
 
-        int singleOutI = getClosestEnemy(rc);
+        /*int singleOutI = getClosestEnemy(rc);
         if (singleOutI != 0) {
             MapLocation singleOut = Communication.convertIntToMapLocation(singleOutI);
-            if (current.distanceSquaredTo(singleOut) <= RobotType.SOLDIER.visionRadiusSquared) {
+            if (rc.canSenseLocation(singleOut)) {
                 target = rc.senseRobotAtLocation(singleOut);
             }
-        }
+        }*/
 
         if (target != null) {
             if (rc.getLocation().distanceSquaredTo(target.getLocation()) > RobotType.SOLDIER.actionRadiusSquared) {
                 if (allyAttackersCount < enemyAttackersCount && !nearAllyArchon) {
-                    Direction escapeDir = Pathfinding.escapeEnemies(rc);
-                    if (rc.canMove(escapeDir)) {
-                        rc.move(escapeDir);
+                    RobotInfo[] allys = rc.senseNearbyRobots(-1, rc.getTeam());
+                    if (allyAttackersCount != 0) {
+                        RobotInfo nearestAlly = getClosestAlly(rc, allys);
+                        if (nearestAlly != null) {
+                            Direction escapeDir = Pathfinding.greedyPathfinding(rc, nearestAlly.getLocation());
+                            if (rc.canMove(escapeDir)) {
+                                rc.move(escapeDir);
+                            }
+                        }
+                    } else {
+                        Direction escapeDir = Pathfinding.escapeEnemies(rc);
+                        if (rc.canMove(escapeDir)) {
+                            rc.move(escapeDir);
+                        }
                     }
                 } else {
                     MapLocation toAttack = target.getLocation();
@@ -107,15 +114,28 @@ public class Soldier2 {
                         }
                     }
 
-                    if (rubbleAtleastRubbleLocation <= rc.senseRubble(target.getLocation())) {
-                        Direction to = Pathfinding.greedyPathfinding(rc, leastRubbleLocation);
-                        if (rc.canMove(to)) {
-                            rc.move(to);
-                        }
-                    } else {
-                        Direction dir = Pathfinding.escapeEnemies(rc);
-                        if (rc.canMove(dir)) {
-                            rc.move(dir);
+                    if (leastRubbleLocation != null && rc.canSenseLocation(target.getLocation())) {
+                        if (rubbleAtleastRubbleLocation <= rc.senseRubble(target.getLocation())) {
+                            Direction to = Pathfinding.greedyPathfinding(rc, leastRubbleLocation);
+                            if (rc.canMove(to)) {
+                                rc.move(to);
+                            }
+                        } else {
+                            RobotInfo[] allys = rc.senseNearbyRobots(-1, rc.getTeam());
+                            if (allyAttackersCount != 0) {
+                                RobotInfo nearestAlly = getClosestAlly(rc, allys);
+                                if (nearestAlly != null) {
+                                    Direction escapeDir = Pathfinding.greedyPathfinding(rc, nearestAlly.getLocation());
+                                    if (rc.canMove(escapeDir)) {
+                                        rc.move(escapeDir);
+                                    }
+                                }
+                            } else {
+                                Direction escapeDir = Pathfinding.escapeEnemies(rc);
+                                if (rc.canMove(escapeDir)) {
+                                    rc.move(escapeDir);
+                                }
+                            }
                         }
                     }
                 }
@@ -131,15 +151,23 @@ public class Soldier2 {
                 }
                 if (target.getType() == RobotType.ARCHON) {
                     swarmArcon(rc, target.getLocation());
-                } else if (allyAttackersCount < enemyAttackersCount && !nearAllyArchon) {
-                    Direction escapeDir = Pathfinding.escapeEnemies(rc);
-                    if (rc.canMove(escapeDir)) {
-                        rc.move(escapeDir);
-                    }
-                } else if (rc.senseRubble(current) > rc.senseRubble(target.getLocation())) {
-                    Direction dir = Pathfinding.escapeEnemies(rc);
-                    if (rc.canMove(dir)) {
-                        rc.move(dir);
+                }
+                if ((allyAttackersCount < enemyAttackersCount && !nearAllyArchon)
+                        || rc.senseRubble(current) > rc.senseRubble(target.getLocation())) {
+                    RobotInfo[] allys = rc.senseNearbyRobots(-1, rc.getTeam());
+                    if (allyAttackersCount != 0) {
+                        RobotInfo nearestAlly = getClosestAlly(rc, allys);
+                        if (nearestAlly != null) {
+                            Direction escapeDir = Pathfinding.greedyPathfinding(rc, nearestAlly.getLocation());
+                            if (rc.canMove(escapeDir)) {
+                                rc.move(escapeDir);
+                            }
+                        }
+                    } else {
+                        Direction escapeDir = Pathfinding.escapeEnemies(rc);
+                        if (rc.canMove(escapeDir)) {
+                            rc.move(escapeDir);
+                        }
                     }
                 } else if ((target.getType() == RobotType.SOLDIER || target.getType() == RobotType.SAGE)) {
                     Direction away = rc.getLocation().directionTo(target.getLocation()).opposite();
@@ -260,7 +288,8 @@ public class Soldier2 {
         int distanceSquaredToClosest = Integer.MAX_VALUE;
         for (int i = 0; i < allies.length; i++) {
             RobotInfo ally = allies[i];
-            if (rc.getLocation().distanceSquaredTo(ally.getLocation()) < distanceSquaredToClosest) {
+            if (ally.getType() == RobotType.SOLDIER
+                    && rc.getLocation().distanceSquaredTo(ally.getLocation()) < distanceSquaredToClosest) {
                 closestAlly = ally;
                 distanceSquaredToClosest = rc.getLocation().distanceSquaredTo(ally.getLocation());
             }
@@ -293,13 +322,28 @@ public class Soldier2 {
 
     static void checkNeedsHealing(RobotController rc) throws GameActionException {
         if (rc.getHealth() < 10 || healing) {
-            healing = true;
-            if (Data.spawnBaseLocation.distanceSquaredTo(rc.getLocation()) > RobotType.ARCHON.actionRadiusSquared - 4) {
-                Direction dir = rc.getLocation().directionTo(Data.spawnBaseLocation);
-                dir = Pathfinding.greedyPathfinding(rc, dir);
+            int[] allyArchons = Communication.getArchonLocations(rc);
+            MapLocation closestBase = null;
+            int distanceToClosest = Integer.MAX_VALUE;
+
+            for (int i = 0; i < allyArchons.length; i++) {
+                if (allyArchons[i] != 0 && Communication.convertIntToMapLocation(allyArchons[i])
+                        .distanceSquaredTo(rc.getLocation()) < distanceToClosest) {
+                    closestBase = Communication.convertIntToMapLocation(allyArchons[i]);
+                    distanceToClosest = Communication.convertIntToMapLocation(allyArchons[i])
+                            .distanceSquaredTo(rc.getLocation());
+                }
+            }
+
+            if (closestBase != null
+                    && closestBase.distanceSquaredTo(rc.getLocation()) > RobotType.ARCHON.actionRadiusSquared - 4) {
+                healing = true;
+                Direction dir = rc.getLocation().directionTo(closestBase);
                 if (rc.canMove(dir)) {
                     rc.move(dir);
                 }
+            } else if (closestBase == null) {
+                healing = false;
             }
         }
         if (healing && rc.getHealth() >= 45) {

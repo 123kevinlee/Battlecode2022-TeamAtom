@@ -286,7 +286,8 @@ public class Soldier {
         int distanceSquaredToClosest = Integer.MAX_VALUE;
         for (int i = 0; i < allies.length; i++) {
             RobotInfo ally = allies[i];
-            if (rc.getLocation().distanceSquaredTo(ally.getLocation()) < distanceSquaredToClosest) {
+            if (ally.getType() == RobotType.SOLDIER
+                    && rc.getLocation().distanceSquaredTo(ally.getLocation()) < distanceSquaredToClosest) {
                 closestAlly = ally;
                 distanceSquaredToClosest = rc.getLocation().distanceSquaredTo(ally.getLocation());
             }

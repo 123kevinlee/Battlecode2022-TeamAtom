@@ -6,6 +6,7 @@ import java.util.*;
 //0-3 enemyArchon
 //4-9 metalLocation
 //10-19 enemyLocation
+//20 archon moving
 //49 = rand
 //50-53 archonId
 //54 spawnIndex
@@ -13,6 +14,9 @@ import java.util.*;
 //59-62 archonLocations
 //63 lastLeadAmount
 public class Communication {
+    static int ownBaseLocationIndex = 0;
+    static int distressIndex = -1;
+
     static void setCommArrayIndexToZero(RobotController rc, int index) throws GameActionException {
         rc.writeSharedArray(index, 0);
     }
@@ -141,9 +145,14 @@ public class Communication {
         for (int i = 0; i < locations.length; i++) {
             if (locations[i] == 0) {
                 rc.writeSharedArray(i + 59, location);
+                ownBaseLocationIndex = i + 59;
                 break;
             }
         }
+    }
+
+    static void changeArchonLocation(RobotController rc, int location) throws GameActionException {
+        rc.writeSharedArray(ownBaseLocationIndex, location);
     }
 
     static int[] getArchonLocations(RobotController rc) throws GameActionException {
@@ -187,31 +196,55 @@ public class Communication {
     }
 
     static void sendDistressSignal(RobotController rc, int location) throws GameActionException {
-        int[] locations = new int[] { rc.readSharedArray(55), rc.readSharedArray(56), rc.readSharedArray(57),
-                rc.readSharedArray(58) };
-        for (int i = 0; i < locations.length; i++) {
-            if (locations[i] == 0) {
-                rc.writeSharedArray(i + 55, location);
-                break;
+        if (distressIndex == -1) {
+            int[] locations = new int[] { rc.readSharedArray(55), rc.readSharedArray(56), rc.readSharedArray(57),
+                    rc.readSharedArray(58) };
+            for (int i = 0; i < locations.length; i++) {
+                if (locations[i] == 0) {
+                    rc.writeSharedArray(i + 55, location);
+                    distressIndex = i + 55;
+                    break;
+                }
             }
+        } else {
+            rc.writeSharedArray(distressIndex, location);
         }
     }
 
     static void endDistressSignal(RobotController rc, int location) throws GameActionException {
-        int[] locations = new int[] { rc.readSharedArray(55), rc.readSharedArray(56), rc.readSharedArray(57),
-                rc.readSharedArray(58) };
-        for (int i = 0; i < locations.length; i++) {
-            if (locations[i] == location) {
-                setCommArrayIndexToZero(rc, i + 55);
-                break;
-            }
+        if (distressIndex != -1) {
+            setCommArrayIndexToZero(rc, distressIndex);
+            distressIndex = -1;
         }
+    }
+
+    static void clearDistressSignals(RobotController rc) throws GameActionException {
+        setCommArrayIndexToZero(rc, 55);
+        setCommArrayIndexToZero(rc, 56);
+        setCommArrayIndexToZero(rc, 57);
+        setCommArrayIndexToZero(rc, 58);
     }
 
     static int[] checkDistressSignal(RobotController rc) throws GameActionException {
         int[] locations = new int[] { rc.readSharedArray(55), rc.readSharedArray(56), rc.readSharedArray(57),
                 rc.readSharedArray(58) };
         return locations;
+    }
+
+    static void signalMovingArchon(RobotController rc) throws GameActionException {
+        rc.writeSharedArray(20, 1);
+    }
+
+    static void signalMovingArchonEnd(RobotController rc) throws GameActionException {
+        rc.writeSharedArray(20, 0);
+    }
+
+    static boolean anArchonIsMoving(RobotController rc) throws GameActionException {
+        if (rc.readSharedArray(20) == 1) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     static int convertMapLocationToInt(MapLocation location) {
