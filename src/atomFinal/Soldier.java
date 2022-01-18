@@ -1,4 +1,4 @@
-package atomV4d5random;
+package atomFinal;
 
 import battlecode.common.*;
 
