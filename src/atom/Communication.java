@@ -6,6 +6,8 @@ import java.util.*;
 //0-3 enemyArchon
 //4-9 metalLocation
 //10-15 enemyLocation
+//16 Lowest Archon rubble
+//17 lowest archon rubble location
 //49 = rand
 //50-53 archonId
 //54 spawnIndex
@@ -213,5 +215,20 @@ public class Communication {
         String y = String.format("%02d", location.y);
         String locationS = x + y;
         return Integer.parseInt(locationS);
+    }
+
+    //determines if this archon has less rubble than the others around it
+    static void checkNearbyRubble(RobotController rc){
+        MapLocation[] locs = rc.getAllLocationsWithinRadiusSquared(rc.getLocation(), Integer.MAX_VALUE);
+        int totalRubble = 0;
+
+        for(MapLocation loc : locs){
+            if(rc.canSenseLocation(loc))
+                totalRubble += rc.senseRubble(loc);
+        }
+        if(totalRubble < rc.readSharedArray(16) || rc.readSharedArray(16) == 0){
+            rc.writeSharedArray(16, totalRubble);
+            rc.writeShartedArray(17, convertMapLocationToInt);
+        }
     }
 }
