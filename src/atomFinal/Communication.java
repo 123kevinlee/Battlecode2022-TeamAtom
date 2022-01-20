@@ -5,8 +5,10 @@ import java.util.*;
 
 //0-3 enemyArchon
 //4-9 metalLocation
-//10-19 enemyLocation
-//20 archon moving
+//10-15 enemyLocation
+//16 archonMovement
+//20-28 Unit Counter
+//40-45 Unit Counter
 //49 = rand
 //50-53 archonId
 //54 spawnIndex
