@@ -1,4 +1,4 @@
-package atomFinal;
+package atomV4d5random;
 
 import battlecode.common.*;
 import java.util.*;
@@ -351,10 +351,8 @@ public class Pathfinding {
         MapLocation loc = rc.getLocation();
         //int centerThreshold = (int) Math.pow(Math.min(width, height) / 5, 2);
 
-        Direction toCenter = Data.spawnBaseLocation.directionTo(center);
+        Direction toCenter = rc.getLocation().directionTo(center);
         if (current == null) {
-            current = toCenter;
-            /*
             int rand = Data.rng.nextInt(6);
             if (rand == 0) {
                 current = toCenter;
@@ -368,7 +366,7 @@ public class Pathfinding {
                 current = toCenter.rotateLeft().rotateLeft();
             } else if (rand == 5) {
                 current = toCenter.opposite();
-            }*/
+            }
         } else if (loc.x == 0) {
             int rand = (int) (Math.random() * 2);
             if (rand == 0) {

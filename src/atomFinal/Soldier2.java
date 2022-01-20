@@ -71,7 +71,7 @@ public class Soldier2 {
 
         if (target != null) {
             if (rc.getLocation().distanceSquaredTo(target.getLocation()) > RobotType.SOLDIER.actionRadiusSquared) {
-                if (allyAttackersCount < enemyAttackersCount && !nearAllyArchon) {
+                if (allyAttackersCount + 2 < enemyAttackersCount && !nearAllyArchon) {
                     RobotInfo[] allys = rc.senseNearbyRobots(-1, rc.getTeam());
                     if (allyAttackersCount != 0) {
                         RobotInfo nearestAlly = getClosestAlly(rc, allys);
@@ -152,7 +152,7 @@ public class Soldier2 {
                 if (target.getType() == RobotType.ARCHON) {
                     swarmArcon(rc, target.getLocation());
                 }
-                if ((allyAttackersCount < enemyAttackersCount && !nearAllyArchon)
+                if ((allyAttackersCount + 2 < enemyAttackersCount && !nearAllyArchon)
                         || rc.senseRubble(current) > rc.senseRubble(target.getLocation())) {
                     RobotInfo[] allys = rc.senseNearbyRobots(-1, rc.getTeam());
                     if (allyAttackersCount != 0) {
@@ -207,7 +207,8 @@ public class Soldier2 {
                     rc.move(dir);
                     rc.setIndicatorString(closestEnemy + "MOVINGTOENEMY");
                 }
-            } else {
+            } 
+            else {
                 MapLocation farthestMinerFromBase = null;
                 int minerDistanceFromBase = 0;
                 RobotInfo[] allys = rc.senseNearbyRobots(-1, rc.getTeam());
@@ -321,7 +322,7 @@ public class Soldier2 {
     }
 
     static void checkNeedsHealing(RobotController rc) throws GameActionException {
-        if (rc.getHealth() < 10 || healing) {
+        if (rc.getHealth() < 20 || healing) {
             int[] allyArchons = Communication.getArchonLocations(rc);
             MapLocation closestBase = null;
             int distanceToClosest = Integer.MAX_VALUE;

@@ -1,4 +1,4 @@
-package atomFinal;
+package atomV4d5random;
 
 import battlecode.common.*;
 import java.util.*;
@@ -20,7 +20,6 @@ public class Miner {
 
         RobotInfo[] nearbyRobots = rc.senseNearbyRobots();
         int nearbyMinerCount = 0;
-        int nearbyEnemyMinerCount = 0;
 
         if (nearbyRobots.length > 0) {
             for (int i = 0; i < nearbyRobots.length; i++) {
@@ -54,22 +53,18 @@ public class Miner {
 
                     //Direction dir = rc.getLocation().directionTo(robot.getLocation()).opposite();
                     //dir = Pathfinding.greedyPathfinding(rc, dir);
-                   /* Direction dir = Pathfinding.escapeEnemies(rc);
+                    Direction dir = Pathfinding.escapeEnemies(rc);
                     if (rc.canMove(dir)) {
                         rc.move(dir);
                     }
-                    Pathfinding.setNewExploreLocation(rc);*/
+                    Pathfinding.setNewExploreLocation(rc);
                 } else if (robot.getTeam() == opponent) {
-                    Communication.seenEnemy(rc);
+                    Communication.addEnemyLocation(rc, Communication.convertMapLocationToInt(robot.getLocation()));
                     if (robot.getType() == RobotType.MINER && currentLoc.distanceSquaredTo(robot.getLocation()) <= 4) {
-                        nearbyEnemyMinerCount++;
+                        shouldEcoterroism = true;
                     }
                 }
             }
-        }
-
-        if(nearbyEnemyMinerCount > 2){
-            shouldEcoterroism = true;
         }
 
         //tries to stop miners from flocking
@@ -96,19 +91,10 @@ public class Miner {
         int distanceToTarget = Integer.MAX_VALUE;
 
         for (MetalLocation loc : metalLocations) {
-            if (rc.getRoundNum() < 50 && loc.location.distanceSquaredTo(Pathfinding.randomLocation) <= currentLoc
-                    .distanceSquaredTo(Pathfinding.randomLocation)) {
-                int distanceToLoc = currentLoc.distanceSquaredTo(loc.location);
-                if (distanceToLoc < distanceToTarget) {
-                    target = loc;
-                    distanceToTarget = distanceToLoc;
-                }
-            } else {
-                int distanceToLoc = currentLoc.distanceSquaredTo(loc.location);
-                if (distanceToLoc < distanceToTarget) {
-                    target = loc;
-                    distanceToTarget = distanceToLoc;
-                }
+            int distanceToLoc = currentLoc.distanceSquaredTo(loc.location);
+            if (distanceToLoc < distanceToTarget) {
+                target = loc;
+                distanceToTarget = distanceToLoc;
             }
         }
 
@@ -245,7 +231,7 @@ public class Miner {
         }
 
         if (closestAllyBase != null && closestEnemyBase != null
-                && distanceToClosestEnemyBase <= distanceToClosestAllyBase - 9) {
+                && distanceToClosestEnemyBase <= distanceToClosestAllyBase - 25) {
             shouldEcoterroism = true;
         }
     }
@@ -372,6 +358,5 @@ public class Miner {
             }
         }
         Data.rng = new Random(rc.getID());
-        Pathfinding.setNewExploreLocation(rc);
     }
 }

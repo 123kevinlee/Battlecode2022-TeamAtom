@@ -1,41 +1,50 @@
-package atomFinal;
+package atomV4d5random;
 
 import battlecode.common.*;
 import java.util.*;
 
 public class Archon {
-    static int startSpawn = 0;
+    static int startSpawn = 0; //counter for initial spawn order
+
     static ArrayList<RobotType> spawnOrder = new ArrayList<RobotType>();
     static int spawnOrderCounter = 0;
     static ArrayList<Direction> spawnDirections = new ArrayList<Direction>();
     static int ogArchonNumber = 0;
     static boolean isMTS = false;
+
     static boolean enemyArchonNear = false;
     static boolean enemyNear = false;
-    static boolean seenEnemy = false;
+
+    //static boolean seenEnemy = false;
 
     static void runArchon(RobotController rc) throws GameActionException {
-        if(rc.readSharedArray(49)==1){
-            seenEnemy = true;
+        UnitCounter.reset(rc);
+
+        if (rc.getRoundNum() % 3 == 0) {
+            Communication.clearEnemyLocations(rc);
         }
 
-        UnitCounter.reset(rc);
-        Communication.clearEnemyLocations(rc);
+        /*if (!seenEnemy) {
+            int[] enemyLocations = Communication.getEnemyLocations(rc);
+            for (int i = 0; i < enemyLocations.length; i++) {
+                if (enemyLocations[i] != 0) {
+                    seenEnemy = true;
+                }
+            }
+        }*/
 
         enemyArchonNear = false;
         enemyNear = false;
         checkEnemyNear(rc);
-        
 
         if (Communication.getArchonIds(rc)[Communication.getArchonSpawnIndex(rc)] == rc.getID()
                 || rc.getArchonCount() != ogArchonNumber) {
             if (!enemyArchonNear) {
                 if (startSpawn < 3) {
-                    spawnMiners(rc);
-                } /*else if (startSpawn >= 3 && startSpawn < 6) {
-                    spawnSoldiers(rc);
-                }*/
-                else if(seenEnemy){
+                    gameStartSequence(rc);
+                } else if (startSpawn >= 3 && startSpawn < 6) {
+                    soldierStartSequence(rc);
+                } else {
                     if (isMTS) {
                         normalSpawnSequence(rc);
                     } else {
@@ -48,6 +57,32 @@ public class Archon {
             }
         }
         heal(rc);
+    }
+
+    public static void gameStartSequence(RobotController rc) throws GameActionException {
+        if (!rc.isActionReady() && rc.getTeamLeadAmount(rc.getTeam()) >= RobotType.MINER.buildCostLead) {
+            Communication.increaseArchonSpawnIndex(rc);
+        } else {
+            Direction dir = openSpawnLocation(rc, RobotType.MINER);
+            if (rc.canBuildRobot(RobotType.MINER, dir)) {
+                rc.buildRobot(RobotType.MINER, dir);
+                Communication.increaseArchonSpawnIndex(rc);
+                startSpawn++;
+            }
+        }
+    }
+
+    public static void soldierStartSequence(RobotController rc) throws GameActionException {
+        if (!rc.isActionReady() && rc.getTeamLeadAmount(rc.getTeam()) >= RobotType.SOLDIER.buildCostLead) {
+            Communication.increaseArchonSpawnIndex(rc);
+        } else {
+            Direction dir = openSpawnLocation(rc, RobotType.SOLDIER);
+            if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
+                rc.buildRobot(RobotType.SOLDIER, dir);
+                Communication.increaseArchonSpawnIndex(rc);
+                startSpawn++;
+            }
+        }
     }
 
     public static void normalSpawnSequence(RobotController rc) throws GameActionException {
@@ -84,6 +119,21 @@ public class Archon {
                     break;
             }
         }
+    }
+
+    //returns open spawn direction
+    public static Direction openSpawnLocation(RobotController rc, RobotType type) throws GameActionException {
+        int rand = (int) (Math.random() * 3);
+        if (rc.canBuildRobot(type, spawnDirections.get(rand))) {
+            return spawnDirections.get(rand);
+        } else {
+            for (Direction dir : spawnDirections) {
+                if (rc.canBuildRobot(type, dir)) {
+                    return dir;
+                }
+            }
+        }
+        return Direction.CENTER;
     }
 
     public static void newSpawnLogic(RobotController rc) throws GameActionException {
@@ -145,53 +195,12 @@ public class Archon {
         }
     }
 
-    public static void spawnMiners(RobotController rc) throws GameActionException {
-        if (!rc.isActionReady() && rc.getTeamLeadAmount(rc.getTeam()) >= RobotType.MINER.buildCostLead) {
-            Communication.increaseArchonSpawnIndex(rc);
-        } else {
-            Direction dir = openSpawnLocation(rc, RobotType.MINER);
-            if (rc.canBuildRobot(RobotType.MINER, dir)) {
-                rc.buildRobot(RobotType.MINER, dir);
-                Communication.increaseArchonSpawnIndex(rc);
-                startSpawn++;
-            }
-        }
-    }
-
-    public static void spawnSoldiers(RobotController rc) throws GameActionException {
-        if (!rc.isActionReady() && rc.getTeamLeadAmount(rc.getTeam()) >= RobotType.SOLDIER.buildCostLead) {
-            Communication.increaseArchonSpawnIndex(rc);
-        } else {
-            Direction dir = openSpawnLocation(rc, RobotType.SOLDIER);
-            if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
-                rc.buildRobot(RobotType.SOLDIER, dir);
-                Communication.increaseArchonSpawnIndex(rc);
-                startSpawn++;
-            }
-        }
-    }
-
     public static void increaseSpawnOrderCounter() {
         if (spawnOrderCounter >= spawnOrder.size() - 1) {
             spawnOrderCounter = 0;
         } else {
             spawnOrderCounter++;
         }
-    }
-
-    //returns open spawn direction
-    public static Direction openSpawnLocation(RobotController rc, RobotType type) throws GameActionException {
-        int rand = (int) (Math.random() * 3);
-        if (rc.canBuildRobot(type, spawnDirections.get(rand))) {
-            return spawnDirections.get(rand);
-        } else {
-            for (Direction dir : spawnDirections) {
-                if (rc.canBuildRobot(type, dir)) {
-                    return dir;
-                }
-            }
-        }
-        return Direction.CENTER;
     }
 
     public static void checkEnemyNear(RobotController rc) throws GameActionException {
@@ -226,18 +235,18 @@ public class Archon {
         if (enemyNear) {
             RobotInfo ally = null;
             int lowestValue = Integer.MAX_VALUE;
-            int highestHealth = 0;
+            int lowestHealth = Integer.MAX_VALUE;
             for (int i = 0; i < allys.length; i++) {
                 if (allys[i].getHealth() < allys[i].getType().health) {
                     int allyValue = Data.determineEnemyValue(allys[i]);
                     if (allyValue < lowestValue) {
                         ally = allys[i];
                         lowestValue = allyValue;
-                        highestHealth = allys[i].getHealth();
-                    } else if (allyValue == lowestValue && allys[i].getHealth() > highestHealth) {
+                        lowestHealth = allys[i].getHealth();
+                    } else if (allyValue == lowestValue && allys[i].getHealth() < lowestHealth) {
                         ally = allys[i];
                         lowestValue = allyValue;
-                        highestHealth = allys[i].getHealth();
+                        lowestHealth = allys[i].getHealth();
                     }
                 }
             }
@@ -288,13 +297,13 @@ public class Archon {
         spawnDirections.add(dirToCenter.rotateRight().rotateRight().rotateRight());
         spawnDirections.add(dirToCenter.opposite());
 
-        RobotInfo[] robots = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, rc.getTeam().opponent());
+        /*RobotInfo[] robots = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, rc.getTeam().opponent());
         for (int i = 0; i < robots.length; i++) {
             RobotInfo robot = robots[i];
             if (robot.getType() == RobotType.ARCHON) {
                 Communication.addEnemyArconLocation(Communication.convertMapLocationToInt(robot.getLocation()), rc);
             }
-        }
+        }*/
 
         int amountOfLeadAround = 0;
         MapLocation[] surroundings = rc.getAllLocationsWithinRadiusSquared(rc.getLocation(),
