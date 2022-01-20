@@ -9,6 +9,8 @@ public class Builder {
     static boolean healing = false;
 
     static void runBuilder(RobotController rc) throws GameActionException {
+
+        UnitCounter.addBuilders();
         currentLoc = rc.getLocation();
         Team opponent = rc.getTeam().opponent();
 
@@ -37,7 +39,7 @@ public class Builder {
             Pathfinding.greedyPathfinding(rc, closestBase);
         } else{
             rc.wander();
-            
+
             ArrayList<Direction> dirs = new ArrayList<Direction>();
             dirs.add(Direction.NORTH);
             dirs.add(Direction.NORTHEAST);
